@@ -1,0 +1,11 @@
+package com.timebridge.entity;
+
+public enum NotificationType {
+    APPOINTMENT_CONFIRMATION,
+    APPOINTMENT_REMINDER,
+    APPOINTMENT_CANCELLATION,
+    APPOINTMENT_RESCHEDULED,
+    QUEUE_JOINED,
+    QUEUE_NEAR_TURN,
+    QUEUE_UPDATE
+}
