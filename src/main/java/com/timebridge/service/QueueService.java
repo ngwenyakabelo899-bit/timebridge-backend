@@ -5,10 +5,15 @@ import com.timebridge.entity.*;
 import com.timebridge.repository.AppointmentRepository;
 import com.timebridge.repository.QueueRepository;
 import org.springframework.stereotype.Service;
-
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.NoSuchElementException;
+import com.timebridge.dto.StaffDashboardStats;
+import com.timebridge.dto.StaffQueueResponse;
+import com.timebridge.repository.BranchRepository;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Comparator;
 
 @Service
 public class QueueService {
@@ -18,10 +23,13 @@ public class QueueService {
 
     private final QueueRepository queueRepository;
     private final AppointmentRepository appointmentRepository;
+    private final BranchRepository branchRepository;
 
-    public QueueService(QueueRepository queueRepository, AppointmentRepository appointmentRepository) {
+    public QueueService(QueueRepository queueRepository, AppointmentRepository appointmentRepository,
+                        BranchRepository branchRepository) {
         this.queueRepository = queueRepository;
         this.appointmentRepository = appointmentRepository;
+        this.branchRepository = branchRepository;
     }
 
     public QueueResponse joinQueue(String citizenEmail, Long appointmentId) {
@@ -122,4 +130,100 @@ public class QueueService {
         } while (exists);
         return candidate;
     }
+
+    public List<StaffQueueResponse> getWaitingQueue(Long branchId) {
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new NoSuchElementException("Branch not found"));
+
+        return queueRepository.findWaitingByBranchOrderByJoinedAt(branch).stream()
+                .map(this::toStaffResponse)
+                .toList();
+    }
+
+    public StaffQueueResponse getCurrentClient(Long branchId) {
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new NoSuchElementException("Branch not found"));
+
+        List<Queue> called = queueRepository.findCalledByBranch(branch);
+        if (called.isEmpty()) {
+            return null;
+        }
+        return toStaffResponse(called.get(0));
+    }
+
+    public StaffQueueResponse callNextClient(Long branchId) {
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new NoSuchElementException("Branch not found"));
+
+        List<Queue> waiting = queueRepository.findWaitingByBranchOrderByJoinedAt(branch);
+        if (waiting.isEmpty()) {
+            throw new NoSuchElementException("No clients waiting at this branch");
+        }
+
+        Queue next = waiting.get(0);
+        next.setStatus(QueueStatus.CALLED);
+        queueRepository.save(next);
+
+        recalculatePositionsForBranch(branch);
+
+        return toStaffResponse(next);
+    }
+
+    public StaffQueueResponse serveClient(Long queueId) {
+        Queue queue = queueRepository.findById(queueId)
+                .orElseThrow(() -> new NoSuchElementException("Queue entry not found"));
+
+        queue.setStatus(QueueStatus.SERVED);
+        queueRepository.save(queue);
+
+        return toStaffResponse(queue);
+    }
+
+    public StaffQueueResponse markNoShow(Long queueId) {
+        Queue queue = queueRepository.findById(queueId)
+                .orElseThrow(() -> new NoSuchElementException("Queue entry not found"));
+
+        Branch branch = queue.getAppointment().getBranch();
+        queue.setStatus(QueueStatus.NO_SHOW);
+        queueRepository.save(queue);
+
+        recalculatePositionsForBranch(branch);
+
+        return toStaffResponse(queue);
+    }
+
+    public StaffDashboardStats getDashboardStats(Long branchId) {
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new NoSuchElementException("Branch not found"));
+
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+
+        long inQueue = queueRepository.findWaitingByBranchOrderByJoinedAt(branch).size();
+        long servedToday = queueRepository.countServedTodayByBranch(branch, startOfDay);
+        Double avgServiceTime = queueRepository.averageServiceMinutesTodayByBranch(branch, startOfDay);
+
+        List<Queue> waiting = queueRepository.findWaitingByBranchOrderByJoinedAt(branch);
+        int currentWait = waiting.isEmpty() ? 0 : waiting.get(0).getEstimatedWaitMinutes();
+
+        return new StaffDashboardStats(
+                inQueue,
+                servedToday,
+                avgServiceTime == null ? 0.0 : avgServiceTime,
+                currentWait
+        );
+    }
+
+    private StaffQueueResponse toStaffResponse(Queue queue) {
+        return new StaffQueueResponse(
+                queue.getId(),
+                queue.getQueueToken(),
+                queue.getAppointment().getCitizen().getFirstName(),
+                queue.getAppointment().getCitizen().getLastName(),
+                queue.getAppointment().getService().getName(),
+                queue.getQueuePosition(),
+                queue.getEstimatedWaitMinutes(),
+                queue.getStatus().name()
+        );
+    }
+
 }
