@@ -6,10 +6,19 @@ import com.timebridge.entity.QueueStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface QueueRepository extends JpaRepository<Queue, Long> {
 
     List<Queue> findByStatusOrderByQueuePositionAsc(QueueStatus status);
 
     long countByStatus(QueueStatus status);
+
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT q FROM Queue q WHERE q.status = 'WAITING' " +
+                    "AND q.appointment.branch = :branch ORDER BY q.joinedAt ASC"
+    )
+    List<Queue> findWaitingByBranchOrderByJoinedAt(Branch branch);
+
+    Optional<Queue> findByAppointmentId(Long appointmentId);
 }
