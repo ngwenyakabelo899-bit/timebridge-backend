@@ -13,13 +13,16 @@ public class DataSeeder implements CommandLineRunner {
     private final BranchRepository branchRepository;
     private final ServiceRepository serviceRepository;
     private final UserRepository userRepository;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     public DataSeeder(BranchRepository branchRepository,
                       ServiceRepository serviceRepository,
-                      UserRepository userRepository) {
+                      UserRepository userRepository,
+                      org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.branchRepository = branchRepository;
         this.serviceRepository = serviceRepository;
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -56,17 +59,25 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedDemoUsers() {
-        if (userRepository.count() > 0) {
-            return;
+        if (!userRepository.existsByEmail("citizen@timebridge.gov.za")) {
+            userRepository.save(new User("John", "Doe", "citizen@timebridge.gov.za",
+                    "0821234567", passwordEncoder.encode("password123"), Role.ROLE_CITIZEN));
+            System.out.println(">>> Seeded demo citizen account");
         }
-        userRepository.save(new User("John", "Doe", "citizen@timebridge.gov.za",
-                "0821234567", "password123", Role.ROLE_CITIZEN));
-        userRepository.save(new User("Thabo", "Molefe", "staff@timebridge.gov.za",
-                "0837654321", "password123", Role.ROLE_STAFF));
-        userRepository.save(new User("Nomsa", "Dlamini", "admin@timebridge.gov.za",
-                "0845551234", "admin123", Role.ROLE_ADMIN));
-        System.out.println(">>> Seeded 3 demo users");
-        System.out.println(">>> DEMO LOGINS (plain text for now, will be hashed in Phase 2):");
+
+        if (!userRepository.existsByEmail("staff@timebridge.gov.za")) {
+            userRepository.save(new User("Thabo", "Molefe", "staff@timebridge.gov.za",
+                    "0837654321", passwordEncoder.encode("password123"), Role.ROLE_STAFF));
+            System.out.println(">>> Seeded demo staff account");
+        }
+
+        if (!userRepository.existsByEmail("admin@timebridge.gov.za")) {
+            userRepository.save(new User("Nomsa", "Dlamini", "admin@timebridge.gov.za",
+                    "0845551234", passwordEncoder.encode("admin123"), Role.ROLE_ADMIN));
+            System.out.println(">>> Seeded demo admin account");
+        }
+
+        System.out.println(">>> DEMO LOGINS:");
         System.out.println(">>>   Citizen: citizen@timebridge.gov.za / password123");
         System.out.println(">>>   Staff:   staff@timebridge.gov.za / password123");
         System.out.println(">>>   Admin:   admin@timebridge.gov.za / admin123");
