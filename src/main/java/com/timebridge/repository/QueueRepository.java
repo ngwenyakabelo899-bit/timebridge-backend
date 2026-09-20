@@ -33,4 +33,10 @@ public interface QueueRepository extends JpaRepository<Queue, Long> {
     @Query("SELECT AVG(q.appointment.service.durationMinutes) FROM Queue q " +
             "WHERE q.status = 'SERVED' AND q.appointment.branch = :branch AND q.joinedAt >= :startOfDay")
     Double averageServiceMinutesTodayByBranch(Branch branch, LocalDateTime startOfDay);
+
+    @Query("SELECT q FROM Queue q ORDER BY q.joinedAt DESC")
+    List<Queue> findRecentActivity(org.springframework.data.domain.Pageable pageable);
+
+    @Query("SELECT AVG(q.estimatedWaitMinutes) FROM Queue q WHERE q.status = 'SERVED'")
+    Double averageWaitTimeAllServed();
 }
