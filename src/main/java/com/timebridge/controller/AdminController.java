@@ -34,4 +34,24 @@ public class AdminController {
     public Object getRecentActivity() {
         return adminService.getRecentActivity();
     }
+
+    @GetMapping("/weekly-performance")
+    public Object getWeeklyPerformance() {
+        return adminService.getWeeklyPerformance();
+    }
+
+    @GetMapping("/peak-hours")
+    public Object getPeakHours() {
+        return adminService.getPeakHours();
+    }
+
+    @GetMapping("/service-distribution")
+    public Object getServiceDistribution() {
+        return adminService.getServiceDistribution();
+    }
+
+    @GetMapping("/wait-time-trend")
+    public Object getWaitTimeTrend() {
+        return adminService.getWaitTimeTrend();
+    }
 }
