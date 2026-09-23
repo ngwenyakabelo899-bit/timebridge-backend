@@ -1,9 +1,15 @@
 package com.timebridge.controller;
 
 import com.timebridge.service.AdminService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -53,5 +59,18 @@ public class AdminController {
     @GetMapping("/wait-time-trend")
     public Object getWaitTimeTrend() {
         return adminService.getWaitTimeTrend();
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportAppointmentsCsv() {
+        String csv = adminService.generateAppointmentsCsv();
+        byte[] bytes = csv.getBytes(StandardCharsets.UTF_8);
+
+        String filename = "timebridge-appointments-" + LocalDate.now() + ".csv";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .body(bytes);
     }
 }

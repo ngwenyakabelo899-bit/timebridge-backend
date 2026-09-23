@@ -88,6 +88,34 @@ public class AdminService {
                 .toList();
     }
 
+    public String generateAppointmentsCsv() {
+        List<Appointment> appointments = appointmentRepository.findAll();
+
+        StringBuilder csv = new StringBuilder();
+        csv.append("Token,Citizen,Service,Branch,Date,Time,Status,Created At\n");
+
+        for (Appointment a : appointments) {
+            csv.append(escapeCsv(a.getTokenNumber())).append(",");
+            csv.append(escapeCsv(a.getCitizen().getFirstName() + " " + a.getCitizen().getLastName())).append(",");
+            csv.append(escapeCsv(a.getService().getName())).append(",");
+            csv.append(escapeCsv(a.getBranch().getName())).append(",");
+            csv.append(a.getAppointmentDate()).append(",");
+            csv.append(a.getAppointmentTime()).append(",");
+            csv.append(a.getStatus()).append(",");
+            csv.append(a.getCreatedAt()).append("\n");
+        }
+
+        return csv.toString();
+    }
+
+    private String escapeCsv(String value) {
+        if (value == null) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
+
     public List<WeeklyPerformanceEntry> getWeeklyPerformance() {
         Map<DayOfWeek, Long> served = queueRepository.findAll().stream()
                 .filter(q -> q.getStatus() == QueueStatus.SERVED)
