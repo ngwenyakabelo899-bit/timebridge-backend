@@ -73,4 +73,9 @@ public class AdminController {
                 .contentType(MediaType.parseMediaType("text/csv"))
                 .body(bytes);
     }
+
+    @GetMapping("/insights")
+    public Object getInsights() {
+        return adminService.generateInsights();
+    }
 }

@@ -22,6 +22,7 @@ import com.timebridge.entity.QueueStatus;
 import com.timebridge.repository.AppointmentRepository;
 import com.timebridge.repository.QueueRepository;
 import org.springframework.data.domain.PageRequest;
+import com.timebridge.dto.SmartInsight;
 
 
 import java.util.List;
@@ -184,5 +185,122 @@ public class AdminService {
             result.add(new WaitTimeTrendEntry(label, Math.round(avg * 10.0) / 10.0));
         }
         return result;
+    }
+
+    public List<SmartInsight> generateInsights() {
+        List<SmartInsight> insights = new java.util.ArrayList<>();
+
+        List<WeeklyPerformanceEntry> weekly = getWeeklyPerformance();
+        List<PeakHourEntry> peak = getPeakHours();
+        List<ServiceDistributionEntry> distribution = getServiceDistribution();
+        List<WaitTimeTrendEntry> waitTrend = getWaitTimeTrend();
+        AdminDashboardStats stats = getDashboardStats();
+
+        if (stats.getNumberOfAppointments() == 0) {
+            insights.add(new SmartInsight(
+                    "General",
+                    "There isn't enough booking history yet to generate meaningful insights. Check back once more appointments have been made.",
+                    "neutral"
+            ));
+            return insights;
+        }
+
+        WeeklyPerformanceEntry busiestDay = weekly.stream()
+                .max(java.util.Comparator.comparingLong(w -> w.getClientsServed() + w.getNoShows()))
+                .orElse(null);
+        if (busiestDay != null && (busiestDay.getClientsServed() + busiestDay.getNoShows()) > 0) {
+            insights.add(new SmartInsight(
+                    "Traffic Pattern",
+                    String.format("%s has historically been the busiest day, with %d clients served. Consider ensuring full staffing on this day.",
+                            busiestDay.getDay(), busiestDay.getClientsServed()),
+                    "neutral"
+            ));
+        }
+
+        PeakHourEntry busiestHour = peak.stream()
+                .max(java.util.Comparator.comparingLong(PeakHourEntry::getClientsPerHour))
+                .orElse(null);
+        if (busiestHour != null) {
+            insights.add(new SmartInsight(
+                    "Peak Hours",
+                    String.format("The %s time slot sees the highest number of bookings. Citizens visiting outside this window may experience shorter waits.",
+                            busiestHour.getHour()),
+                    "neutral"
+            ));
+        }
+
+        ServiceDistributionEntry topService = distribution.stream()
+                .max(java.util.Comparator.comparingDouble(ServiceDistributionEntry::getPercentage))
+                .orElse(null);
+        if (topService != null) {
+            insights.add(new SmartInsight(
+                    "Service Demand",
+                    String.format("%s is the most requested service, accounting for %.1f%% of all appointments.",
+                            topService.getServiceName(), topService.getPercentage()),
+                    "neutral"
+            ));
+        }
+
+        if (stats.getNoShowRatePercent() >= 20) {
+            insights.add(new SmartInsight(
+                    "No-Show Rate",
+                    String.format("The no-show rate is %.1f%%, which is relatively high. Consider sending appointment reminders to reduce missed bookings.",
+                            stats.getNoShowRatePercent()),
+                    "warning"
+            ));
+        } else if (stats.getNoShowRatePercent() <= 5 && stats.getNoShowRatePercent() > 0) {
+            insights.add(new SmartInsight(
+                    "No-Show Rate",
+                    String.format("The no-show rate is a healthy %.1f%%. Current reminder and confirmation processes appear to be working well.",
+                            stats.getNoShowRatePercent()),
+                    "positive"
+            ));
+        } else if (stats.getNoShowRatePercent() == 0) {
+            insights.add(new SmartInsight(
+                    "No-Show Rate",
+                    "No no-shows have been recorded so far. Excellent attendance rate.",
+                    "positive"
+            ));
+        }
+
+        List<WaitTimeTrendEntry> nonZeroWaits = waitTrend.stream()
+                .filter(w -> w.getAvgWaitMinutes() > 0)
+                .toList();
+        if (nonZeroWaits.size() >= 2) {
+            double first = nonZeroWaits.get(0).getAvgWaitMinutes();
+            double last = nonZeroWaits.get(nonZeroWaits.size() - 1).getAvgWaitMinutes();
+            if (last > first * 1.2) {
+                insights.add(new SmartInsight(
+                        "Wait Times",
+                        "Average wait times appear to be trending upward across the week. This may indicate a need for additional staff during busy periods.",
+                        "warning"
+                ));
+            } else if (last < first * 0.8) {
+                insights.add(new SmartInsight(
+                        "Wait Times",
+                        "Average wait times are trending downward across the week, suggesting improved queue efficiency.",
+                        "positive"
+                ));
+            }
+        }
+
+        if (stats.getAvgWaitTimeMinutes() > 30) {
+            insights.add(new SmartInsight(
+                    "Efficiency",
+                    String.format("The overall average wait time is %.0f minutes. Reviewing service durations or adding a second staff member per branch could help.",
+                            stats.getAvgWaitTimeMinutes()),
+                    "warning"
+            ));
+        }
+
+        if (insights.isEmpty()) {
+            insights.add(new SmartInsight(
+                    "General",
+                    "System performance looks stable, with no significant patterns to flag at this time.",
+                    "neutral"
+            ));
+        }
+
+        return insights;
     }
 }
