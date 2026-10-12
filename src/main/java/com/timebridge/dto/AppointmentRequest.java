@@ -21,6 +21,17 @@ public class AppointmentRequest {
     @NotNull(message = "Time is required")
     private LocalTime appointmentTime;
 
+    @jakarta.validation.constraints.Size(max = 40, message = "Invalid province")
+    private String provinceCode;
+
+    public String getProvinceCode() {
+        return provinceCode;
+    }
+
+    public void setProvinceCode(String provinceCode) {
+        this.provinceCode = provinceCode;
+    }
+
     public Long getServiceId() {
         return serviceId;
     }

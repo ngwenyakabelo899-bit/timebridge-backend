@@ -1,7 +1,9 @@
 package com.timebridge.controller;
 
 import com.timebridge.entity.Branch;
+import com.timebridge.entity.Province;
 import com.timebridge.repository.BranchRepository;
+import com.timebridge.service.AvailabilityService;
 import com.timebridge.service.BestTimeService;
 import com.timebridge.service.BranchLoadService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -21,17 +23,23 @@ public class BranchController {
     private final BranchRepository branchRepository;
     private final BestTimeService bestTimeService;
     private final BranchLoadService branchLoadService;
+    private final AvailabilityService availabilityService;
 
     public BranchController(BranchRepository branchRepository,
                             BestTimeService bestTimeService,
-                            BranchLoadService branchLoadService) {
+                            BranchLoadService branchLoadService,
+                            AvailabilityService availabilityService) {
         this.branchRepository = branchRepository;
         this.bestTimeService = bestTimeService;
         this.branchLoadService = branchLoadService;
+        this.availabilityService = availabilityService;
     }
 
     @GetMapping
-    public List<Branch> getAllBranches() {
+    public List<Branch> getBranches(@RequestParam(required = false) Province province) {
+        if (province != null) {
+            return branchRepository.findByProvinceOrderByNameAsc(province);
+        }
         return branchRepository.findAll();
     }
 
@@ -50,6 +58,16 @@ public class BranchController {
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", e.getMessage()));
         }
+    }
+
+    @GetMapping("/{id}/availability")
+    public ResponseEntity<?> getAvailability(
+            @PathVariable Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return branchRepository.findById(id)
+                .<ResponseEntity<?>>map(branch -> ResponseEntity.ok(availabilityService.getAvailability(branch, date)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("message", "Branch not found")));
     }
 
     @GetMapping("/load-comparison")
