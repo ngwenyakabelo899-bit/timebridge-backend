@@ -59,27 +59,19 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedDemoUsers() {
-        if (!userRepository.existsByEmail("citizen@timebridge.gov.za")) {
-            userRepository.save(new User("John", "Doe", "citizen@timebridge.gov.za",
-                    "0821234567", passwordEncoder.encode("password123"), Role.ROLE_CITIZEN));
-            System.out.println(">>> Seeded demo citizen account");
-        }
+        seedUser("John", "Doe", "citizen@timebridge.gov.za", "0821234567", "password123", Role.ROLE_CITIZEN);
+        seedUser("Thabo", "Molefe", "staff@timebridge.gov.za", "0837654321", "password123", Role.ROLE_STAFF);
+        seedUser("Nomsa", "Dlamini", "admin@timebridge.gov.za", "0845551234", "admin123", Role.ROLE_ADMIN);
+    }
 
-        if (!userRepository.existsByEmail("staff@timebridge.gov.za")) {
-            userRepository.save(new User("Thabo", "Molefe", "staff@timebridge.gov.za",
-                    "0837654321", passwordEncoder.encode("password123"), Role.ROLE_STAFF));
-            System.out.println(">>> Seeded demo staff account");
+    private void seedUser(String firstName, String lastName, String email, String phone,
+                          String password, Role role) {
+        if (userRepository.existsByEmail(email)) {
+            return;
         }
-
-        if (!userRepository.existsByEmail("admin@timebridge.gov.za")) {
-            userRepository.save(new User("Nomsa", "Dlamini", "admin@timebridge.gov.za",
-                    "0845551234", passwordEncoder.encode("admin123"), Role.ROLE_ADMIN));
-            System.out.println(">>> Seeded demo admin account");
-        }
-
-        System.out.println(">>> DEMO LOGINS:");
-        System.out.println(">>>   Citizen: citizen@timebridge.gov.za / password123");
-        System.out.println(">>>   Staff:   staff@timebridge.gov.za / password123");
-        System.out.println(">>>   Admin:   admin@timebridge.gov.za / admin123");
+        User user = new User(firstName, lastName, email, phone, passwordEncoder.encode(password), role);
+        user.setEmailVerified(true);
+        userRepository.save(user);
+        System.out.println(">>> Seeded demo account: " + email);
     }
 }
